@@ -1,0 +1,10 @@
+idf_component_register(
+    SRCS
+        "mod_esp32_c5.c"
+    INCLUDE_DIRS
+        "."
+    PRIV_REQUIRES
+        driver
+        esp_system
+        freertos
+)
