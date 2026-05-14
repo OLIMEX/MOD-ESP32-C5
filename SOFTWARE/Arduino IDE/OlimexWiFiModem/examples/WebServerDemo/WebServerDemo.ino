@@ -108,11 +108,15 @@ void sendPage(int id) {
           "<script>"
           "function toggleLed(){"
           "const b=document.getElementById('toggle');"
+          "const s=document.getElementById('state');"
+          "const c=new AbortController();"
+          "const t=setTimeout(()=>c.abort(),2500);"
           "b.disabled=true;"
-          "fetch(\"/toggle\")"
+          "fetch(\"/toggle\",{cache:\"no-store\",signal:c.signal})"
           ".then(r=>r.text())"
-          ".then(t=>{document.getElementById('state').textContent=t;})"
-          ".finally(()=>{b.disabled=false;});"
+          ".then(x=>{s.textContent=x;})"
+          ".catch(()=>{s.textContent=\"RETRY\";})"
+          ".finally(()=>{clearTimeout(t);b.disabled=false;});"
           "}"
           "</script>"
 
@@ -124,6 +128,23 @@ void sendPage(int id) {
     "text/html",
     html
   );
+}
+
+// =====================================================
+
+String firstRequestLine(const String &req) {
+
+  int end = req.indexOf('\n');
+
+  if (end < 0) {
+    return req;
+  }
+
+  String line = req.substring(0, end);
+
+  line.trim();
+
+  return line;
 }
 
 // =====================================================
@@ -223,9 +244,8 @@ void loop() {
 
   String req = (char *)reqBuf;
 
-  Serial.println("----- REQUEST BEGIN -----");
-  Serial.println(req);
-  Serial.println("----- REQUEST END -----");
+  Serial.print("Request: ");
+  Serial.println(firstRequestLine(req));
 
   // favicon
 

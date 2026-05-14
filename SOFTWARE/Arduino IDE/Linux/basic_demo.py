@@ -7,7 +7,7 @@ from olimex_wifi_modem import OlimexWiFiModem
 
 def main():
     parser = argparse.ArgumentParser(description="MOD-ESP32-C5 basic WiFi test")
-    parser.add_argument("--port", default="/dev/ttyS1", help="UEXT UART device")
+    parser.add_argument("--port", default="/dev/ttyS4", help="UEXT UART device")
     parser.add_argument("--ssid", required=True, help="WiFi network name")
     parser.add_argument("--password", required=True, help="WiFi password")
     args = parser.parse_args()
@@ -39,4 +39,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -1,20 +1,18 @@
 #include <WiFi.h>
-#include <Preferences.h>
 
 // UEXT UART pins used by MOD-ESP32-C5.
 // These are the pins that connect the ESP32-C5 module to the host board.
 #define UART_RX 4
 #define UART_TX 5
 
-// Status LEDs on MOD-ESP32-C5. They are active-low on this hardware.
+// Status LEDs on MOD-ESP32-C5. They are active-low on this hardware:
+//   green LED1/GPIO27: WiFi link, on while connected
+//   red LED2/GPIO26: activity, blinks on UART/browser traffic
 #define LED_GREEN 27
 #define LED_RED   26
 
 // UART port used for the UEXT connector.
 HardwareSerial UEXT(1);
-
-// Preferences stores the last successful WiFi credentials in ESP32 flash.
-Preferences prefs;
 
 // The ESP32-C5 accepts browser connections and forwards them to the host board
 // using simple text commands over UEXT.
@@ -25,6 +23,7 @@ bool clientUsed[8];
 
 // One command line received from the host board.
 String rxLine;
+uint32_t redActivityUntil = 0;
 
 // =====================================================
 
@@ -36,11 +35,28 @@ void ledRed(bool on) {
   digitalWrite(LED_RED, on ? LOW : HIGH);
 }
 
+void activityBlink(uint16_t duration = 60) {
+  redActivityUntil = millis() + duration;
+  ledRed(true);
+}
+
+void updateStatusLeds() {
+  // Green behaves like an Ethernet link LED.
+  ledGreen(WiFi.status() == WL_CONNECTED);
+
+  // Red behaves like an Ethernet activity LED.
+  if (redActivityUntil && (int32_t)(millis() - redActivityUntil) >= 0) {
+    redActivityUntil = 0;
+    ledRed(false);
+  }
+}
+
 void out(const String &s) {
   // Send every protocol message to both the host board and the USB Serial
   // Monitor. This makes debugging much easier for first-time users.
   UEXT.println(s);
   Serial.println(s);
+  activityBlink();
 }
 
 void prompt() {
@@ -79,29 +95,16 @@ void connectWiFi(const String &ssid, const String &pass) {
 
   if (WiFi.status() == WL_CONNECTED) {
 
-    // Green LED means WiFi is connected.
-    ledGreen(true);
-    ledRed(false);
-
-    // Store credentials only after a successful connection.
-    prefs.begin("wifi", false);
-
-    prefs.putString("ssid", ssid);
-    prefs.putString("pass", pass);
-
-    prefs.end();
-
     out("WIFI:CONNECTED");
     out("IP:" + WiFi.localIP().toString());
 
   } else {
 
-    // Red LED means the connection attempt failed.
-    ledGreen(false);
-    ledRed(true);
-
     out("ERROR:CONNECT");
+    activityBlink(1000);
   }
+
+  updateStatusLeds();
 }
 
 // =====================================================
@@ -126,6 +129,8 @@ void serverTask() {
 
   if (!c)
     return;
+
+  activityBlink();
 
   // Lower latency for small HTTP responses such as the LED toggle response.
   c.setNoDelay(true);
@@ -458,6 +463,7 @@ void loop() {
   while (UEXT.available()) {
 
     char c = UEXT.read();
+    activityBlink();
 
     if (c == '\r')
       continue;
@@ -476,4 +482,6 @@ void loop() {
 
   // Accept new browser clients when the web server is running.
   serverTask();
+
+  updateStatusLeds();
 }

@@ -7,10 +7,11 @@ import serial
 
 
 class OlimexWiFiModem:
-    def __init__(self, port="/dev/ttyS1", baudrate=115200, debug=True):
+    def __init__(self, port="/dev/ttyS4", baudrate=115200, debug=True):
         self.ser = serial.Serial(port=port, baudrate=baudrate, timeout=0.05)
         self.debug = debug
         self.pending_clients = []
+        self.line_fragment = ""
 
     def close(self):
         self.ser.close()
@@ -23,6 +24,34 @@ class OlimexWiFiModem:
             print(f"[TX] {cmd}")
         self.ser.write((cmd + "\n").encode("utf-8"))
         self.ser.flush()
+
+    def normalize_line(self, line):
+        known = (
+            "PONG",
+            "WIFI:CONNECTED",
+            "IP:",
+            "SERVER:STARTED",
+            "SERVER:CLIENT:",
+            "DATA:",
+            "READY",
+            "OK",
+            "END",
+            "ERROR:",
+        )
+
+        if self.line_fragment:
+            line = self.line_fragment + line
+            self.line_fragment = ""
+
+        if line in ("WIFI:", "IP:", "DATA:", "SERVER:CLIENT:", "ERROR:"):
+            self.line_fragment = line
+            return ""
+
+        if any(prefix.startswith(line) and prefix != line for prefix in known):
+            self.line_fragment = line
+            return ""
+
+        return line
 
     def read_line(self, timeout=2.0):
         end = time.monotonic() + timeout
@@ -42,7 +71,7 @@ class OlimexWiFiModem:
                 if line.startswith(">"):
                     line = line[1:].strip()
                 if line:
-                    return line
+                    return self.normalize_line(line)
                 data.clear()
                 continue
 
@@ -54,6 +83,8 @@ class OlimexWiFiModem:
         line = data.decode("utf-8", errors="replace").strip()
         if line.startswith(">"):
             line = line[1:].strip()
+        if line:
+            return self.normalize_line(line)
         return line
 
     def read_exact(self, size, timeout=2.0):
@@ -78,6 +109,7 @@ class OlimexWiFiModem:
 
     def wait_for(self, token, timeout=3.0):
         end = time.monotonic() + timeout
+        recent = ""
 
         while time.monotonic() < end:
             line = self.read_line(timeout=0.2)
@@ -89,7 +121,12 @@ class OlimexWiFiModem:
 
             self.cache_client_line(line)
 
-            if token in line:
+            if line.startswith("ERROR:"):
+                return False
+
+            recent = (recent + line)[-128:]
+
+            if token in line or token in recent:
                 return True
 
         return False
@@ -157,6 +194,9 @@ class OlimexWiFiModem:
             if self.debug:
                 print(f"[RX] {line}")
 
+            if line in ("ERROR:BAD_ID", "ERROR:CLOSED"):
+                return None
+
             if line.startswith("ERROR:"):
                 raise RuntimeError(line)
 
@@ -200,4 +240,3 @@ class OlimexWiFiModem:
     def server_close(self, client_id):
         self.send_cmd(f"server close {client_id}")
         return self.wait_for("OK", timeout=3.0)
-

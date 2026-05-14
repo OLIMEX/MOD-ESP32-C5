@@ -1,10 +1,9 @@
-# Olinuxino Example For MOD-ESP32-C5
+# OLinuXino Example For MOD-ESP32-C5
 
-This folder contains Linux userspace examples for using MOD-ESP32-C5 from an
-OLinuXino board such as A20-OLinuXino-MICRO.
+Linux userspace examples for using MOD-ESP32-C5 from an OLinuXino board.
 
-The MOD-ESP32-C5 firmware is assumed to be already uploaded and working. These
-files do not modify the ESP32-C5 firmware.
+The MOD-ESP32-C5 firmware is assumed to be already flashed with the Arduino
+`ESP32_C5_Firmware` example. These files only run on the Linux host board.
 
 ## Files
 
@@ -17,31 +16,11 @@ Olinuxino-example/
   web_server_demo.py
 ```
 
-- `olimex_wifi_modem.py` - small Python driver for the MOD-ESP32-C5 UART protocol.
-- `basic_demo.py` - checks the modem, connects to WiFi, and prints the IP address.
-- `web_server_demo.py` - starts the MOD-ESP32-C5 web server and shows a browser button.
-- `requirements.txt` - Python dependency list.
+- `olimex_wifi_modem.py` - Python driver for the MOD-ESP32-C5 UART protocol.
+- `basic_demo.py` - checks the modem, connects WiFi, and prints the IP address.
+- `web_server_demo.py` - serves a browser button through MOD-ESP32-C5.
 
-## Copy Files To The OLinuXino Board
-
-Copy the whole `Olinuxino-example` folder to the Linux board.
-
-Example from your PC:
-
-```sh
-scp -r Olinuxino-example root@OLINUXINO_IP:/root/
-```
-
-Or copy it with a USB flash drive, SD card, `sftp`, or any other method.
-
-Then log in to the OLinuXino board:
-
-```sh
-ssh root@OLINUXINO_IP
-cd /root/Olinuxino-example
-```
-
-## Install Python Dependency
+## Install Dependency
 
 On Debian-based OLinuXino images:
 
@@ -50,40 +29,42 @@ apt update
 apt install python3 python3-serial
 ```
 
-Alternative using `pip`:
+## Download Directly On The Board
 
 ```sh
-python3 -m pip install -r requirements.txt
+mkdir -p Olinuxino-example
+cd Olinuxino-example
+
+wget -O basic_demo.py https://github.com/OLIMEX/MOD-ESP32-C5/raw/refs/heads/main/SOFTWARE/Arduino%20IDE/Linux/basic_demo.py
+wget -O olimex_wifi_modem.py https://github.com/OLIMEX/MOD-ESP32-C5/raw/refs/heads/main/SOFTWARE/Arduino%20IDE/Linux/olimex_wifi_modem.py
+wget -O web_server_demo.py https://github.com/OLIMEX/MOD-ESP32-C5/raw/refs/heads/main/SOFTWARE/Arduino%20IDE/Linux/web_server_demo.py
 ```
 
-## Connect Hardware
+## Serial Port
 
-1. Flash MOD-ESP32-C5 with the Arduino `ESP32_C5_Firmware` first.
-2. Connect MOD-ESP32-C5 to the OLinuXino board through UEXT.
-3. Power the boards.
-4. Find the Linux serial device for UEXT.
-
-The examples default to:
+For A20-OLinuXino-MICRO with MOD-ESP32-C5 connected to UEXT1, the schematic
+shows A20 UART6 on UEXT1. On the tested Linux image this appears as:
 
 ```text
-/dev/ttyS1
+/dev/ttyS4
 ```
 
-Your image may use another UART device. Check with:
+The examples default to `/dev/ttyS4`.
+
+For another OLinuXino board, another UEXT connector, or another Linux image,
+change `--port /dev/ttyS4` to the correct `/dev/ttySx`.
+
+Useful checks:
 
 ```sh
 ls -l /dev/ttyS*
 dmesg | grep tty
 ```
 
-If `/dev/ttyS1` does not work, try `/dev/ttyS2`, `/dev/ttyS3`, etc.
-
-## Run The Basic Demo
-
-Replace `WIFI_SSID` and `WIFI_PASSWORD` with your real WiFi credentials:
+## Basic Demo
 
 ```sh
-python3 basic_demo.py --port /dev/ttyS1 --ssid WIFI_SSID --password WIFI_PASSWORD
+python3 basic_demo.py --port /dev/ttyS4 --ssid WIFI_SSID --password WIFI_PASSWORD
 ```
 
 Expected output:
@@ -92,7 +73,7 @@ Expected output:
 ================================
 MOD-ESP32-C5 Linux Basic Demo
 ================================
-Serial port: /dev/ttyS1
+Serial port: /dev/ttyS4
 Checking modem...
 [TX] ping
 [RX] PONG
@@ -105,77 +86,47 @@ Connecting to WiFi...
 WiFi connected, IP: 192.168.0.198
 ```
 
-Your IP address will be different.
-
-## Run The Web Server Demo
-
-Replace `WIFI_SSID` and `WIFI_PASSWORD` with your real WiFi credentials:
+## Web Server Demo
 
 ```sh
-python3 web_server_demo.py --port /dev/ttyS1 --ssid WIFI_SSID --password WIFI_PASSWORD
+python3 web_server_demo.py --port /dev/ttyS4 --ssid WIFI_SSID --password WIFI_PASSWORD
 ```
 
-Expected startup output:
-
-```text
-================================
-MOD-ESP32-C5 Linux Web Demo
-================================
-Serial port: /dev/ttyS1
-Checking modem...
-[TX] ping
-[RX] PONG
-Modem OK
-Connecting to WiFi...
-[TX] connect MyRouter MyPassword
-[RX] WIFI:CONNECTED
-[TX] ip
-[RX] IP:192.168.0.198
-WiFi connected, IP: 192.168.0.198
-[TX] server start 80
-[RX] SERVER:STARTED
-HTTP server started
-Open browser: http://192.168.0.198
-```
-
-Open the printed address in a browser connected to the same network.
+Open the printed IP address in a browser on the same network.
 
 Expected result:
 
-- A web page titled `OLinuXino + MOD-ESP32-C5` opens.
-- The page shows `Software LED is OFF` or `Software LED is ON`.
-- Pressing the button toggles the software state.
-- Serial output shows each browser request.
+- Page title: `OLinuXino + MOD-ESP32-C5`
+- Button toggles LED1 on A20-OLinuXino-MICRO.
+- Browser refreshes and stale connections are handled without stopping the script.
 
-This demo does not toggle a physical OLinuXino GPIO pin. It only proves that the
-Linux board can control the MOD-ESP32-C5 firmware over UEXT and serve a browser
-page through it.
+On A20-OLinuXino-MICRO, LED1 is exposed by the kernel LED subsystem. The web
+demo selects a likely LED automatically. To choose one explicitly:
 
-## Troubleshooting
+```sh
+ls -l /sys/class/leds
+python3 web_server_demo.py --port /dev/ttyS4 --ssid WIFI_SSID --password WIFI_PASSWORD --led LED_NAME
+```
 
-If you see `Modem not detected`:
+To run the web demo without controlling a physical LED:
 
-- Check that MOD-ESP32-C5 is powered.
-- Check that the MOD-ESP32-C5 firmware is already uploaded.
-- Check the UEXT cable/connection.
-- Try another serial port such as `/dev/ttyS2`.
-- Make sure nothing else is using the same serial port.
+```sh
+python3 web_server_demo.py --port /dev/ttyS4 --ssid WIFI_SSID --password WIFI_PASSWORD --no-led
+```
 
-If you see `WiFi failed`:
+## Notes
 
-- Check the SSID and password.
-- Make sure the router is in range.
-- Make sure the WiFi network mode is supported by your MOD-ESP32-C5 setup.
-
-If the web page does not open:
-
-- Make sure your browser device is on the same network.
-- Use the IP address printed by the demo.
-- Check for firewall or routing issues on the network.
+- Run as `root` if your Linux image restricts serial or LED access.
+- If the log shows `DATA:0`, `ERROR:BAD_ID`, or `ERROR:CLOSED` during browser
+  refreshes, this usually means the browser opened or closed an extra socket.
+  The latest scripts treat this as normal and keep running.
+- If the log shows split protocol text such as `S` followed by
+  `ERVER:CLIENT:3`, update `olimex_wifi_modem.py`; the driver reassembles known
+  fragmented protocol lines.
 
 ## Protocol Summary
 
-The Linux scripts send simple text commands to the MOD-ESP32-C5 firmware:
+The Linux scripts send newline-terminated text commands over UEXT UART:
 
 ```text
 ping
@@ -187,7 +138,7 @@ server write <client_id> <byte_count>
 server close <client_id>
 ```
 
-The firmware replies with messages such as:
+Common firmware replies:
 
 ```text
 PONG
@@ -200,4 +151,3 @@ READY
 OK
 ERROR:...
 ```
-
