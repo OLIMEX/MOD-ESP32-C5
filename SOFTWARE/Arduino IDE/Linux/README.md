@@ -8,7 +8,7 @@ The MOD-ESP32-C5 firmware is assumed to be already flashed with the Arduino
 ## Files
 
 ```text
-Olinuxino-example/
+Linux/
   README.md
   requirements.txt
   olimex_wifi_modem.py
@@ -32,8 +32,8 @@ apt install python3 python3-serial
 ## Download Directly On The Board
 
 ```sh
-mkdir -p Olinuxino-example
-cd Olinuxino-example
+mkdir -p MOD-ESP32-C5-Linux
+cd MOD-ESP32-C5-Linux
 
 wget -O basic_demo.py https://github.com/OLIMEX/MOD-ESP32-C5/raw/refs/heads/main/SOFTWARE/Arduino%20IDE/Linux/basic_demo.py
 wget -O olimex_wifi_modem.py https://github.com/OLIMEX/MOD-ESP32-C5/raw/refs/heads/main/SOFTWARE/Arduino%20IDE/Linux/olimex_wifi_modem.py
